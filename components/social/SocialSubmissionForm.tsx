@@ -27,10 +27,17 @@ async function demoSaveSubmission(data: NewSocialSubmission) {
 
 const INTRO_POPUP_SRC = encodeURI('/Asset 1@5x.png');
 
+const DISCLAIMER_PARAGRAPHS = [
+  'By clicking “Accept & Proceed”, I acknowledge that the information provided by me, including my name, mobile number and bKash account information (my own or my parent’s, as applicable), may be collected and used by bKash solely for registration, activity management, verification and fulfilment of the education payment coupon.',
+  'I understand that my photograph will be taken during the activity solely for printing and providing the photograph to me. bKash will not retain the original photograph taken during the activity or use it for any separate commercial or promotional purpose.',
+  'I understand that, to qualify for the education payment coupon, I am required to share the photograph received from the activity in a social-media post and submit the link to that post and a screenshot of the post through the designated submission link sent by SMS. The submitted social-media link and screenshot will be used solely for verifying the required submission and processing the education payment coupon.',
+  'My information, social-media link and submitted screenshot will not be used for any purpose other than those stated above.',
+];
+
 const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-type FieldName = 'name' | 'college' | 'contactNumber' | 'bkashNumber' | 'friendBkashNumber' | 'screenshot';
+type FieldName = 'name' | 'college' | 'contactNumber' | 'bkashNumber' | 'friendBkashNumber' | 'screenshot' | 'disclaimer';
 type FormErrors = Partial<Record<FieldName | 'form', string>>;
 type View = 'form' | 'otp' | 'success';
 
@@ -58,6 +65,23 @@ function UploadIcon() {
   );
 }
 
+function DocumentIcon() {
+  return (
+    <svg className="terms-trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5M9 13h6M9 17h6" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg className="terms-trigger-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
 function SuccessIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -80,8 +104,10 @@ export default function SocialSubmissionForm() {
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+  const [disclaimerChecked, setDisclaimerChecked] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const introCloseRef = useRef<HTMLButtonElement>(null);
+  const disclaimerRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     if (!showIntro) return;
@@ -94,6 +120,16 @@ export default function SocialSubmissionForm() {
   }, [showIntro]);
 
   const closeIntro = () => setShowIntro(false);
+
+  const setDisclaimer = (checked: boolean) => {
+    setDisclaimerChecked(checked);
+    if (checked) setErrors((current) => ({ ...current, disclaimer: undefined, form: undefined }));
+  };
+
+  const acceptDisclaimer = () => {
+    setDisclaimer(true);
+    disclaimerRef.current?.close();
+  };
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -151,6 +187,7 @@ export default function SocialSubmissionForm() {
     if (!form.friendBkashNumber.trim()) nextErrors.friendBkashNumber = "Your friend's bKash number is required.";
     else if (!isValidPhone(form.friendBkashNumber)) nextErrors.friendBkashNumber = PHONE_VALIDATION_MESSAGE;
     if (!screenshot) nextErrors.screenshot = 'Please attach a screenshot.';
+    if (!disclaimerChecked) nextErrors.disclaimer = 'Please read and agree to the Disclaimer.';
     return nextErrors;
   };
 
@@ -244,6 +281,7 @@ export default function SocialSubmissionForm() {
   const resetForm = () => {
     setForm(initialForm);
     setScreenshot(null);
+    setDisclaimerChecked(false);
     setErrors({});
     setOtp('');
     setOtpError('');
@@ -276,6 +314,22 @@ export default function SocialSubmissionForm() {
           </div>
         </div>
       )}
+      <dialog
+        ref={disclaimerRef}
+        className="terms-modal social-disclaimer"
+        aria-labelledby="social-disclaimer-title"
+      >
+        <div className="terms-modal-header">
+          <h3 id="social-disclaimer-title">Disclaimer</h3>
+          <button type="button" className="terms-modal-close" onClick={() => disclaimerRef.current?.close()} aria-label="Close">×</button>
+        </div>
+        <div className="terms-modal-body social-disclaimer-body">
+          {DISCLAIMER_PARAGRAPHS.map((text) => <p key={text}>{text}</p>)}
+        </div>
+        <div className="terms-modal-actions">
+          <button type="button" className="terms-modal-btn-primary" onClick={acceptDisclaimer}>Accept &amp; Proceed</button>
+        </div>
+      </dialog>
       <div className="kiosk-inner social-inner">
         <div className="kiosk-logo">
           <img src="/logos/bkash.svg" alt="bKash" />
@@ -471,6 +525,25 @@ export default function SocialSubmissionForm() {
                     </label>
                     {errors.screenshot && <span className="field-err" id="social-screenshot-error">{errors.screenshot}</span>}
                   </div>
+                </div>
+
+                <div className="terms-and-conditions">
+                  <button type="button" className="terms-trigger" onClick={() => disclaimerRef.current?.showModal()}>
+                    <DocumentIcon />
+                    <span>Disclaimer</span>
+                    <ChevronIcon />
+                  </button>
+                  <label className="terms-agreement">
+                    <input
+                      type="checkbox"
+                      checked={disclaimerChecked}
+                      onChange={(event) => setDisclaimer(event.target.checked)}
+                      aria-invalid={Boolean(errors.disclaimer)}
+                      aria-describedby={errors.disclaimer ? 'social-disclaimer-error' : undefined}
+                    />
+                    <span>I have read and agree to the Disclaimer</span>
+                  </label>
+                  {errors.disclaimer && <p className="field-err terms-error" id="social-disclaimer-error">{errors.disclaimer}</p>}
                 </div>
 
                 {errors.form && <p className="social-form-error" role="alert">{errors.form}</p>}
